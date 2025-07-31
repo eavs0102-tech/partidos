@@ -1,0 +1,1 @@
+// Este archivo se ha limpiado porque la gestión de datos ahora la realiza el backend.
