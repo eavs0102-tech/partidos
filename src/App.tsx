@@ -22,7 +22,6 @@ function App() {
       setParties(result.data);
     } catch (error) {
       console.error(error);
-      // Aquí podrías manejar el error en la UI
     }
   };
 
@@ -32,12 +31,21 @@ function App() {
 
   const handleAddParty = async (partyData: Omit<Party, 'id'>) => {
     try {
+      const formData = new FormData();
+      Object.keys(partyData).forEach(key => {
+        const value = partyData[key as keyof typeof partyData];
+        if (value !== null && value !== undefined) {
+          if (key === 'logo' && value instanceof File) {
+            formData.append(key, value);
+          } else if (typeof value === 'string') {
+            formData.append(key, value);
+          }
+        }
+      });
+
       const response = await fetch(`${API_URL}/parties`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(partyData),
+        body: formData,
       });
 
       if (!response.ok) {
@@ -45,20 +53,62 @@ function App() {
       }
 
       await response.json();
-      await fetchParties(); // Recargar la lista de partidos
+      await fetchParties();
       setActiveTab('dashboard');
     } catch (error) {
       console.error(error);
-      // Aquí podrías manejar el error en la UI
     }
   };
 
-  const handleUpdateParty = (updatedParty: Party) => {
-    setParties(prev => prev.map(party => 
-      party.id === updatedParty.id ? updatedParty : party
-    ));
-    setEditingParty(null);
-    setActiveTab('dashboard');
+    const handleDeleteParty = async (id: string) => {
+    if (!window.confirm('¿Estás seguro de que deseas eliminar este partido?')) {
+      return;
+    }
+    try {
+      const response = await fetch(`${API_URL}/parties/${id}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Error desconocido al eliminar' }));
+        throw new Error(errorData.message);
+      }
+      // No es necesario parsear JSON en una respuesta 200/204 de un DELETE exitoso
+      fetchParties(); // Recargar la lista para que el partido eliminado desaparezca
+    } catch (error) {
+      console.error('Error en handleDeleteParty:', error);
+    }
+  };
+
+  const handleUpdateParty = async (updatedParty: Party, logoFile: File | null) => {
+    try {
+      const formData = new FormData();
+      Object.keys(updatedParty).forEach(key => {
+        const value = updatedParty[key as keyof typeof updatedParty];
+        if (value !== null && value !== undefined) {
+            formData.append(key, String(value));
+        }
+      });
+
+      if (logoFile) {
+        formData.append('logo', logoFile);
+      }
+
+      const response = await fetch(`${API_URL}/parties/${updatedParty.id}`, {
+        method: 'PUT',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Error al actualizar el partido');
+      }
+
+      await response.json();
+      await fetchParties();
+      setEditingParty(null);
+      setActiveTab('dashboard');
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   const handleEditParty = (party: Party) => {
@@ -66,38 +116,29 @@ function App() {
     setActiveTab('registro');
   };
 
-  const handleDeleteParty = (id: string) => {
-    if (window.confirm('¿Estás seguro de que deseas eliminar este partido político?')) {
-      setParties(prev => prev.filter(party => party.id !== id));
-    }
-  };
-
   const handleCancelEdit = () => {
     setEditingParty(null);
+    setActiveTab('dashboard');
   };
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <header className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-3">
               <Flag className="text-red-600" size={32} />
               <div>
-                <h1 className="text-xl font-bold text-gray-900">
-                  Registro de Partidos Políticos
-                </h1>
+                <h1 className="text-xl font-bold text-gray-900">Registro de Partidos Políticos</h1>
                 <div className="flex items-center gap-1 text-sm text-gray-600">
                   <MapPin size={14} />
                   <span>Cusco, Perú</span>
                 </div>
               </div>
             </div>
-            
             <nav className="flex space-x-4">
               <button
-                onClick={() => setActiveTab('registro')}
+                onClick={() => { setEditingParty(null); setActiveTab('registro'); }}
                 className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                   activeTab === 'registro'
                     ? 'bg-red-600 text-white'
@@ -121,32 +162,28 @@ function App() {
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {activeTab === 'registro' ? (
           <PartyForm
-            onAddParty={handleAddParty as any}
+            onAddParty={handleAddParty}
             editingParty={editingParty}
             onUpdateParty={handleUpdateParty}
             onCancelEdit={handleCancelEdit}
           />
         ) : (
-          <Dashboard
-            parties={parties}
-            onEditParty={handleEditParty}
-            onDeleteParty={handleDeleteParty}
+          <Dashboard 
+            parties={parties} 
+            onEditParty={handleEditParty} 
+            onDeleteParty={handleDeleteParty} 
           />
         )}
       </main>
 
-      {/* Footer */}
       <footer className="bg-white border-t border-gray-200 mt-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="text-center text-gray-600">
             <p>© 2025 Sistema de Registro de Partidos Políticos - Región Cusco</p>
-            <p className="text-sm mt-2">
-              Desarrollado para la gestión democrática y transparente de organizaciones políticas
-            </p>
+            <p className="text-sm mt-2">Desarrollado para la gestión democrática y transparente de organizaciones políticas</p>
           </div>
         </div>
       </footer>

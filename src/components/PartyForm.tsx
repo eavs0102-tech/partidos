@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
-import { Party, IDEOLOGIAS, COLORES_POLITICOS, IdeologiaPolitica } from '../types/Party';
+import React, { useState, useEffect } from 'react';
+import { Party, IDEOLOGIAS, COLORES_POLITICOS } from '../types/Party';
 
 import { Plus, Upload, X } from 'lucide-react';
 
 interface PartyFormProps {
   onAddParty: (party: Omit<Party, 'id'>) => void;
   editingParty?: Party | null;
-  onUpdateParty?: (party: Party) => void;
+  onUpdateParty?: (party: Party, logoFile: File | null) => void;
   onCancelEdit?: () => void;
 }
 
@@ -28,6 +28,38 @@ export const PartyForm: React.FC<PartyFormProps> = ({
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (editingParty) {
+      // Formatear la fecha que viene de la BD (puede ser un string largo) a YYYY-MM-DD que el input[type=date] necesita
+      const formattedDate = editingParty.fechaFundacion
+        ? new Date(editingParty.fechaFundacion).toISOString().split('T')[0]
+        : '';
+
+      setFormData({
+        nombre: editingParty.nombre || '',
+        sigla: editingParty.sigla || '',
+        ideologia: editingParty.ideologia || '',
+        fechaFundacion: formattedDate,
+        sede: editingParty.sede || '',
+        color: editingParty.color || '#DC2626',
+        logo: null, // El input de archivo no se puede pre-llenar por seguridad
+        logoUrl: editingParty.logoUrl || ''
+      });
+    } else {
+      // Si no hay partido para editar (ej. al cancelar), se resetea el formulario
+      setFormData({
+        nombre: '',
+        sigla: '',
+        ideologia: '',
+        fechaFundacion: '',
+        sede: '',
+        color: '#DC2626',
+        logo: null,
+        logoUrl: ''
+      });
+    }
+  }, [editingParty]); // Este efecto se ejecuta cada vez que 'editingParty' cambia
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -80,14 +112,23 @@ export const PartyForm: React.FC<PartyFormProps> = ({
     
     if (!validateForm()) return;
 
+    // Crear una copia de los datos para no mutar el estado directamente
+    const submissionData = { ...formData };
+
+    // Asegurarse de que la fecha_fundacion esté en formato YYYY-MM-DD
+    if (submissionData.fechaFundacion) {
+      const date = new Date(submissionData.fechaFundacion);
+      // Formatear a YYYY-MM-DD. Se suma 1 al mes porque getMonth() es 0-indexed.
+      const year = date.getFullYear();
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const day = date.getDate().toString().padStart(2, '0');
+      submissionData.fechaFundacion = `${year}-${month}-${day}`;
+    }
+
     if (editingParty && onUpdateParty) {
-      const updatedParty: Party = {
-        id: editingParty.id,
-        ...formData
-      };
-      onUpdateParty(updatedParty);
+      onUpdateParty({ ...submissionData, id: editingParty.id }, formData.logo as File | null);
     } else {
-      onAddParty(formData);
+      onAddParty(submissionData);
     }
 
     // Resetear formulario solo si no estamos editando
