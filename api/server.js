@@ -9,16 +9,12 @@ require('dotenv').config();
 const app = express();
 
 // Configuración de CORS
-const allowedOrigins = ['http://localhost:5173', 'https://partidos-frontend.onrender.com'];
-app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  }
-}));
+const corsOptions = {
+  origin: 'https://partidos-frontend.onrender.com',
+  optionsSuccessStatus: 200 // some legacy browsers (IE11, various SmartTVs) choke on 204
+};
+
+app.use(cors(corsOptions));
 
 app.use(express.json());
 
