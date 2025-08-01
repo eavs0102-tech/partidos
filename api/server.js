@@ -38,6 +38,7 @@ const storage = multer.diskStorage({
 const upload = multer({ storage: storage });
 
 const pool = mysql.createPool({
+  connectTimeout: 30000, // 30 segundos de tiempo de espera
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
