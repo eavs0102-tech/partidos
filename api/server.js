@@ -58,7 +58,7 @@ app.get('/api/parties', async (req, res) => {
 // Endpoint para registrar un nuevo partido
 app.post('/api/parties', upload.single('logo'), async (req, res) => {
   const { nombre, sigla, ideologia, fecha_fundacion, sede_principal, color_representativo } = req.body;
-  const logo_url = req.file ? `/uploads/${req.file.filename}` : null;
+  const logo_url = req.file ? `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}` : null;
 
   if (!nombre || !sigla || !fecha_fundacion) {
     return res.status(400).json({ message: 'Nombre, sigla y fecha de fundación son requeridos.' });
@@ -83,7 +83,7 @@ app.put('/api/parties/:id', upload.single('logo'), async (req, res) => {
   
   let logo_url = req.body.logo_url;
   if (req.file) {
-    logo_url = `/uploads/${req.file.filename}`;
+    logo_url = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
   }
 
   try {
