@@ -5,7 +5,7 @@ import { Dashboard } from './components/Dashboard';
 
 import { Flag, MapPin } from 'lucide-react';
 
-const API_URL = 'http://localhost:3001/api';
+const API_URL = 'https://partidos-74j4.onrender.com/api';
 
 function App() {
   const [parties, setParties] = useState<Party[]>([]);
