@@ -1,142 +1,118 @@
-require('dotenv').config();
 const express = require('express');
-const mysql = require('mysql2/promise');
+const { Pool } = require('pg');
 const cors = require('cors');
-const { v4: uuidv4 } = require('uuid');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+require('dotenv').config();
 
 const app = express();
+
+// Configuración de CORS
+const allowedOrigins = ['http://localhost:5173', 'https://partidos-frontend.onrender.com'];
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  }
+}));
+
 app.use(express.json());
-const corsOptions = {
-  origin: 'https://partidos-frontend.onrender.com',
-  optionsSuccessStatus: 200 // some legacy browsers (IE11, various SmartTVs) choke on 204
-};
 
-app.use(cors(corsOptions));
-
-// Crear carpeta de uploads si no existe
+// Crear carpeta de uploads si no existe y servir archivos estáticos
 const uploadsDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir);
 }
-
-// Servir archivos estáticos desde la carpeta 'uploads'
 app.use('/uploads', express.static(uploadsDir));
 
-// Configuración de Multer para subida de archivos
+// Configuración de Multer
 const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, uploadsDir);
-  },
-  filename: function (req, file, cb) {
-    cb(null, uuidv4() + path.extname(file.originalname));
-  }
+  destination: (req, file, cb) => cb(null, uploadsDir),
+  filename: (req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`)
 });
-
 const upload = multer({ storage: storage });
 
-const pool = mysql.createPool({
-  connectTimeout: 30000, // 30 segundos de tiempo de espera
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_DATABASE,
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0
+// Conexión a PostgreSQL
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false
+  }
 });
 
 // Endpoint para obtener todos los partidos
-app.get('/api/parties', async (req, res) => {
+app.get('/api/partidos', async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT * FROM partidos WHERE activo = true ORDER BY fecha_registro DESC');
-    res.status(200).json({ success: true, data: rows });
+    const result = await pool.query('SELECT * FROM partidos ORDER BY id DESC');
+    res.json(result.rows);
   } catch (error) {
     console.error('Error al obtener partidos:', error);
-    res.status(500).json({ success: false, message: 'Error interno del servidor.' });
+    res.status(500).json({ message: 'Error al obtener partidos' });
   }
 });
 
-// Endpoint para registrar un nuevo partido (con subida de logo)
-app.post('/api/parties', upload.single('logo'), async (req, res) => {
+// Endpoint para registrar un nuevo partido
+app.post('/api/partidos', upload.single('logo'), async (req, res) => {
+  const { nombre, sigla, ideologia, fecha_fundacion, sede_principal, color_representativo } = req.body;
+  const logo_url = req.file ? `/uploads/${req.file.filename}` : null;
+
+  if (!nombre || !sigla || !fecha_fundacion) {
+    return res.status(400).json({ message: 'Nombre, sigla y fecha de fundación son requeridos.' });
+  }
+
   try {
-    const { nombre, sigla, ideologia, fechaFundacion, sede, color } = req.body;
-    let logoUrl = null;
-    if (req.file) {
-      logoUrl = `/uploads/${req.file.filename}`;
-    }
-
-    const newParty = {
-      id: uuidv4(),
-      nombre,
-      sigla,
-      ideologia,
-      fecha_fundacion: fechaFundacion, // Mapeo a snake_case
-      sede,
-      color,
-      logo_url: logoUrl,
-      activo: true
-    };
-
-    await pool.query('INSERT INTO partidos SET ?', newParty);
-    res.status(201).json({ success: true, data: newParty });
+    const result = await pool.query(
+      'INSERT INTO partidos (nombre, sigla, ideologia, fecha_fundacion, sede_principal, color_representativo, logo_url) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+      [nombre, sigla, ideologia, fecha_fundacion, sede_principal, color_representativo, logo_url]
+    );
+    res.status(201).json(result.rows[0]);
   } catch (error) {
     console.error('Error al registrar el partido:', error);
-    res.status(500).json({ success: false, message: 'Error al registrar el partido.', error: error.message });
+    res.status(500).json({ message: 'Error al registrar el partido' });
   }
 });
 
-// Endpoint para actualizar un partido (con subida de logo)
-app.put('/api/parties/:id', upload.single('logo'), async (req, res) => {
+// Endpoint para actualizar un partido
+app.put('/api/partidos/:id', upload.single('logo'), async (req, res) => {
   const { id } = req.params;
-  const { nombre, sigla, ideologia, fechaFundacion, sede, color } = req.body;
-
-  let logoUrl = req.body.logoUrl; // Mantiene la URL existente por defecto
+  const { nombre, sigla, ideologia, fecha_fundacion, sede_principal, color_representativo } = req.body;
+  
+  let logo_url = req.body.logo_url;
   if (req.file) {
-    logoUrl = `/uploads/${req.file.filename}`; // Actualiza con la nueva URL si se sube archivo
+    logo_url = `/uploads/${req.file.filename}`;
   }
 
   try {
-    const [result] = await pool.query(
-      'UPDATE partidos SET nombre = ?, sigla = ?, ideologia = ?, fecha_fundacion = ?, sede = ?, color = ?, logo_url = ? WHERE id = ?',
-      [nombre, sigla, ideologia, fechaFundacion, sede, color, logoUrl, id]
+    const result = await pool.query(
+      'UPDATE partidos SET nombre = $1, sigla = $2, ideologia = $3, fecha_fundacion = $4, sede_principal = $5, color_representativo = $6, logo_url = $7 WHERE id = $8 RETURNING *',
+      [nombre, sigla, ideologia, fecha_fundacion, sede_principal, color_representativo, logo_url, id]
     );
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ message: 'Partido no encontrado' });
-    }
-
-    // Devolver el partido actualizado para que el frontend pueda refrescar el estado
-    const [[updatedParty]] = await pool.query('SELECT * FROM partidos WHERE id = ?', [id]);
-    res.json({ message: 'Partido actualizado correctamente', data: updatedParty });
-
+    if (result.rowCount === 0) return res.status(404).json({ message: 'Partido no encontrado' });
+    res.status(200).json(result.rows[0]);
   } catch (error) {
     console.error('Error al actualizar el partido:', error);
-    res.status(500).json({ message: 'Error interno del servidor al actualizar el partido' });
+    res.status(500).json({ message: 'Error al actualizar el partido' });
   }
 });
 
-// Endpoint para "eliminar" un partido (soft delete)
-app.delete('/api/parties/:id', async (req, res) => {
+// Endpoint para eliminar un partido (eliminación permanente)
+app.delete('/api/partidos/:id', async (req, res) => {
   const { id } = req.params;
-
   try {
-    const [result] = await pool.query('DELETE FROM partidos WHERE id = ?', [id]);
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ message: 'Partido no encontrado' });
-    }
-
+    const result = await pool.query('DELETE FROM partidos WHERE id = $1', [id]);
+    if (result.rowCount === 0) return res.status(404).json({ message: 'Partido no encontrado' });
     res.status(200).json({ message: 'Partido eliminado correctamente' });
   } catch (error) {
     console.error('Error al eliminar el partido:', error);
-    res.status(500).json({ message: 'Error interno del servidor al eliminar el partido' });
+    res.status(500).json({ message: 'Error al eliminar el partido' });
   }
 });
 
-const PORT = process.env.API_PORT || 3001;
+const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
-  console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
+  console.log(`🚀 Servidor corriendo en el puerto ${PORT}`);
 });
