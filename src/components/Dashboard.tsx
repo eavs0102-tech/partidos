@@ -46,7 +46,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ parties, onEditParty, onDe
       <div className="bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl p-6">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-3xl font-bold mb-2">Dashboard de Partidos Políticos</h2>
+            <h2 className="text-3xl font-bold mb-2">Dashboard de Partidos Políticos Cusco</h2>
             <p className="text-red-100">Región Cusco, Perú</p>
           </div>
           <div className="text-center">
