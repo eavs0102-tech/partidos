@@ -45,7 +45,7 @@ const pool = new Pool({
 });
 
 // Endpoint para obtener todos los partidos
-app.get('/api/partidos', async (req, res) => {
+app.get('/api/parties', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM partidos ORDER BY id DESC');
     res.json(result.rows);
@@ -56,7 +56,7 @@ app.get('/api/partidos', async (req, res) => {
 });
 
 // Endpoint para registrar un nuevo partido
-app.post('/api/partidos', upload.single('logo'), async (req, res) => {
+app.post('/api/parties', upload.single('logo'), async (req, res) => {
   const { nombre, sigla, ideologia, fecha_fundacion, sede_principal, color_representativo } = req.body;
   const logo_url = req.file ? `/uploads/${req.file.filename}` : null;
 
@@ -77,7 +77,7 @@ app.post('/api/partidos', upload.single('logo'), async (req, res) => {
 });
 
 // Endpoint para actualizar un partido
-app.put('/api/partidos/:id', upload.single('logo'), async (req, res) => {
+app.put('/api/parties/:id', upload.single('logo'), async (req, res) => {
   const { id } = req.params;
   const { nombre, sigla, ideologia, fecha_fundacion, sede_principal, color_representativo } = req.body;
   
@@ -100,7 +100,7 @@ app.put('/api/partidos/:id', upload.single('logo'), async (req, res) => {
 });
 
 // Endpoint para eliminar un partido (eliminación permanente)
-app.delete('/api/partidos/:id', async (req, res) => {
+app.delete('/api/parties/:id', async (req, res) => {
   const { id } = req.params;
   try {
     const result = await pool.query('DELETE FROM partidos WHERE id = $1', [id]);
