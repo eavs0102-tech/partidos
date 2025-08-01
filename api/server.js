@@ -113,6 +113,40 @@ app.delete('/api/partidos/:id', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3001;
+
+// Función para inicializar la base de datos
+async function initializeDatabase() {
+  try {
+    const tableCheck = await pool.query(
+      "SELECT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename  = 'partidos');"
+    );
+
+    if (!tableCheck.rows[0].exists) {
+      console.log('Tabla "partidos" no encontrada. Creándola ahora...');
+      await pool.query(`
+        CREATE TABLE partidos (
+            id SERIAL PRIMARY KEY,
+            nombre VARCHAR(255) NOT NULL,
+            sigla VARCHAR(50) NOT NULL,
+            ideologia VARCHAR(255),
+            fecha_fundacion DATE NOT NULL,
+            sede_principal VARCHAR(255),
+            color_representativo VARCHAR(50),
+            logo_url VARCHAR(255),
+            fecha_registro TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+      console.log('Tabla "partidos" creada exitosamente.');
+    } else {
+      console.log('Tabla "partidos" ya existe.');
+    }
+  } catch (error) {
+    console.error('Error al inicializar la base de datos:', error);
+    process.exit(1); // Detener la aplicación si la DB no se puede inicializar
+  }
+}
+
 app.listen(PORT, () => {
   console.log(`🚀 Servidor corriendo en el puerto ${PORT}`);
+  initializeDatabase();
 });
