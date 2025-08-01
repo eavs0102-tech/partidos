@@ -4,8 +4,8 @@ export interface Party {
   sigla: string;
   ideologia: string;
   fechaFundacion: string;
-  sede: string;
-  color: string;
+  sedePrincipal: string;
+  colorRepresentativo: string;
   logo?: File | null;
   logoUrl?: string;
 }

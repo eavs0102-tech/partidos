@@ -15,13 +15,22 @@ function App() {
   const fetchParties = async () => {
     try {
       const response = await fetch(`${API_URL}/parties`);
-      if (!response.ok) {
-        throw new Error('Error al cargar los partidos');
-      }
-      const result = await response.json();
-      setParties(result.data);
+      const data = await response.json();
+      // Mapeo de snake_case (API) a camelCase (estado de React)
+      const mappedData = data.map((party: any) => ({
+        id: parseInt(party.id, 10),
+        nombre: party.nombre,
+        sigla: party.sigla,
+        ideologia: party.ideologia,
+        fechaFundacion: party.fecha_fundacion,
+        sedePrincipal: party.sede_principal,
+        colorRepresentativo: party.color_representativo,
+        logoUrl: party.logo_url
+      }));
+      setParties(mappedData);
     } catch (error) {
-      console.error(error);
+      console.error('Error al cargar los partidos:', error);
+      setParties([]); // Asegurarse de que parties sea un array en caso de error
     }
   };
 
@@ -29,19 +38,21 @@ function App() {
     fetchParties();
   }, []);
 
-  const handleAddParty = async (partyData: Omit<Party, 'id'>) => {
+  const handleAddParty = async (partyData: Omit<Party, 'id' | 'logoUrl'>, logoFile: File | null) => {
     try {
       const formData = new FormData();
-      Object.keys(partyData).forEach(key => {
-        const value = partyData[key as keyof typeof partyData];
-        if (value !== null && value !== undefined) {
-          if (key === 'logo' && value instanceof File) {
-            formData.append(key, value);
-          } else if (typeof value === 'string') {
-            formData.append(key, value);
-          }
-        }
-      });
+
+      // Mapeo de camelCase (estado de React) a snake_case (API)
+      formData.append('nombre', partyData.nombre);
+      formData.append('sigla', partyData.sigla);
+      formData.append('ideologia', partyData.ideologia);
+      formData.append('fecha_fundacion', partyData.fechaFundacion);
+      formData.append('sede_principal', partyData.sedePrincipal);
+      formData.append('color_representativo', partyData.colorRepresentativo);
+
+      if (logoFile) {
+        formData.append('logo', logoFile);
+      }
 
       const response = await fetch(`${API_URL}/parties`, {
         method: 'POST',
@@ -60,7 +71,7 @@ function App() {
     }
   };
 
-    const handleDeleteParty = async (id: string) => {
+    const handleDeleteParty = async (id: number) => {
     if (!window.confirm('¿Estás seguro de que deseas eliminar este partido?')) {
       return;
     }
@@ -72,8 +83,7 @@ function App() {
         const errorData = await response.json().catch(() => ({ message: 'Error desconocido al eliminar' }));
         throw new Error(errorData.message);
       }
-      // No es necesario parsear JSON en una respuesta 200/204 de un DELETE exitoso
-      fetchParties(); // Recargar la lista para que el partido eliminado desaparezca
+      fetchParties();
     } catch (error) {
       console.error('Error en handleDeleteParty:', error);
     }
@@ -82,12 +92,13 @@ function App() {
   const handleUpdateParty = async (updatedParty: Party, logoFile: File | null) => {
     try {
       const formData = new FormData();
-      Object.keys(updatedParty).forEach(key => {
-        const value = updatedParty[key as keyof typeof updatedParty];
-        if (value !== null && value !== undefined) {
-            formData.append(key, String(value));
-        }
-      });
+
+      formData.append('nombre', updatedParty.nombre);
+      formData.append('sigla', updatedParty.sigla);
+      formData.append('ideologia', updatedParty.ideologia);
+      formData.append('fecha_fundacion', updatedParty.fechaFundacion);
+      formData.append('sede_principal', updatedParty.sedePrincipal);
+      formData.append('color_representativo', updatedParty.colorRepresentativo);
 
       if (logoFile) {
         formData.append('logo', logoFile);

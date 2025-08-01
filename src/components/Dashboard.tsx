@@ -5,7 +5,7 @@ import { BarChart3, Edit2, Trash2, Filter, Users } from 'lucide-react';
 interface DashboardProps {
   parties: Party[];
   onEditParty: (party: Party) => void;
-  onDeleteParty: (id: string) => void;
+  onDeleteParty: (id: number) => void;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ parties, onEditParty, onDeleteParty }) => {
@@ -193,15 +193,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ parties, onEditParty, onDe
                       {formatDate(party.fechaFundacion)}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-600">
-                      {party.sede}
+                      {party.sedePrincipal}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-2">
                         <div
                           className="w-6 h-6 rounded-full border-2 border-gray-300"
-                          style={{ backgroundColor: party.color }}
+                          style={{ backgroundColor: party.colorRepresentativo }}
                         ></div>
-                        <span className="text-sm text-gray-600">{party.color}</span>
+                        <span className="text-sm text-gray-600">{party.colorRepresentativo}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -214,7 +214,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ parties, onEditParty, onDe
                           <Edit2 size={16} />
                         </button>
                         <button
-                          onClick={() => onDeleteParty(party.id)}
+                          onClick={() => onDeleteParty(Number(party.id))}
                           className="text-red-600 hover:text-red-900 p-2 hover:bg-red-50 rounded-lg transition-colors"
                           title="Eliminar partido"
                         >
