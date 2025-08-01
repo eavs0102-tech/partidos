@@ -140,7 +140,7 @@ function App() {
             <div className="flex items-center gap-3">
               <Flag className="text-red-600" size={32} />
               <div>
-                <h1 className="text-xl font-bold text-gray-900">Registro de Partidos Políticos</h1>
+                <h1 className="text-xl font-bold text-gray-900">Partidos Políticos Cusco</h1>
                 <div className="flex items-center gap-1 text-sm text-gray-600">
                   <MapPin size={14} />
                   <span>Cusco, Perú</span>
